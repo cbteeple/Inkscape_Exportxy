@@ -16,8 +16,12 @@
 #
 import inkex
 import sys
+import yaml
+import copy
 from inkex import paths
 from inkex import transforms
+
+height = 0.053
 
 def warn(*args, **kwargs):
     pass
@@ -28,18 +32,37 @@ class TemplateEffect(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
     def effect(self):
-        for node in self.selected.items():
-            output_all = output_nodes = ""
-            for id, node in self.selected.items():
-                if node.tag == inkex.addNS('path','svg'):
-                    output_all += ""
-                    output_nodes += ""
-                    node.apply_transform()
-                    d = node.get('d')
-                    p = paths.CubicSuperPath(d)
-                    for subpath in p:
-                        for csp in subpath:
-                            output_nodes += str(csp[1][0]) + "\t" + str(csp[1][1]) + "\n"
-            sys.stderr.write(output_nodes)
+        idx=0
+        output_all = {}
+        for id, node in self.selected.items():
+            output_nodes = []
+            if node.tag == inkex.addNS('path','svg'):
+                #output_all += ""
+                #output_nodes += ""
+                node.apply_transform()
+                d = node.get('d')
+                p = paths.CubicSuperPath(d)
+                for subpath in p:
+                    for csp in subpath:
+                        new_pt={}
+                        new_pt['position'] = [-csp[1][0]/1000.0, csp[1][1]/1000.0, height]
+                        new_pt['orientation'] = [0,90,0]
+                        output_nodes.append(new_pt)
+
+                z_in = copy.deepcopy(output_nodes[0])
+                z_in['position'][2] = height+0.02
+                z_out = copy.deepcopy(output_nodes[-1])
+                z_out['position'][2] = height+0.02
+                output_nodes.insert(0,z_in)
+                output_nodes.append(z_out)
+                output_all['path'+str(idx)]  = output_nodes
+                idx+=1
+        
+
+        with open('inkscape_path_out.yaml', 'w+') as f:
+            yaml.dump(output_all, f, default_flow_style=None)
+                #f.write(new_pt)
+
+            sys.stderr.write(str(output_nodes))
 TemplateEffect().run()
 sys.exit(0) #helps to keep the selection
